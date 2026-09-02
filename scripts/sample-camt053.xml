@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>GLASTAR-EVAL-MSG-1</MsgId>
+      <CreDtTm>2026-09-02T08:00:00</CreDtTm>
+    </GrpHdr>
+    <Stmt>
+      <Id>GLASTAR-STMT-2026-08</Id>
+      <CreDtTm>2026-09-02T08:00:00</CreDtTm>
+      <Acct>
+        <Id><IBAN>CH4431999123000889012</IBAN></Id>
+        <Ccy>CHF</Ccy>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="CHF">13500.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-08-01</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="CHF">14850.51</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-08-31</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="CHF">330.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-08-04</Dt></BookgDt>
+        <ValDt><Dt>2026-08-04</Dt></ValDt>
+        <AcctSvcrRef>PF-2026-0804-001</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <Refs><EndToEndId>GSF-WS-2026-07</EndToEndId></Refs>
+            <Amt Ccy="CHF">330.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <RltdPties><Dbtr><Nm>Werner Schneider</Nm></Dbtr></RltdPties>
+            <RmtInf><Ustrd>GU GSF-WS-2026-07 Flugstunden</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+        <AddtlNtryInf>Gutschrift Werner Schneider</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">1154.51</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-09-02</Dt></BookgDt>
+        <ValDt><Dt>2026-09-02</Dt></ValDt>
+        <AcctSvcrRef>PF-2026-0902-948</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <Refs><EndToEndId>948</EndToEndId></Refs>
+            <Amt Ccy="CHF">1154.51</Amt>
+            <CdtDbtInd>DBIT</CdtDbtInd>
+            <RltdPties><Cdtr><Nm>Flugplatzgenossenschaft Hangar</Nm></Cdtr></RltdPties>
+            <RmtInf><Ustrd>Hangar Q3 2026</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+        <AddtlNtryInf>PF Bel. Hangar Q3</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">35.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-06-30</Dt></BookgDt>
+        <ValDt><Dt>2026-06-30</Dt></ValDt>
+        <AcctSvcrRef>PF-2026-0630-FEE</AcctSvcrRef>
+        <AddtlNtryInf>Kontoführungsgebühr Q2</AddtlNtryInf>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
