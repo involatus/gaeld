@@ -83,7 +83,7 @@ services:
       dockerfile: Dockerfile
       args:
         GAELD_VERSION: "${GAELD_VERSION:-v3.6.6}"
-    image: gaeld-eval:latest
+    image: gaeld-eval-web:latest
     restart: unless-stopped
     environment:
       <<: *app-env
@@ -113,7 +113,7 @@ services:
       dockerfile: Dockerfile
       args:
         GAELD_VERSION: "${GAELD_VERSION:-v3.6.6}"
-    image: gaeld-eval:latest
+    image: gaeld-eval-worker:latest
     restart: unless-stopped
     command: ["php", "artisan", "horizon"]
     environment:
