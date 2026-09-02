@@ -1,0 +1,181 @@
+# Gäld Community Edition — GlaStar Flyers evaluation stack.
+#
+# Deployed on Coolify (build pack: Docker Compose) behind Traefik on
+# vps.lanz.aero. Also runs locally with `docker compose up --build`
+# (sensible ${...} defaults, override via a local .env).
+#
+# Services: web (nginx + php-fpm), worker (Horizon), postgres, redis, meilisearch.
+
+x-app-env: &app-env
+  APP_NAME: "Gäld"
+  APP_ENV: "${APP_ENV:-production}"
+  APP_KEY: "${APP_KEY:?APP_KEY is required}"
+  APP_DEBUG: "${APP_DEBUG:-false}"
+  APP_URL: "${APP_URL:-http://localhost:8080}"
+  APP_LOCALE: "${APP_LOCALE:-de}"
+  APP_FALLBACK_LOCALE: "en"
+  APP_AVAILABLE_LOCALES: "en,fr,de,it"
+
+  TRUSTED_PROXIES: "${TRUSTED_PROXIES:-*}"
+
+  LOG_CHANNEL: "stack"
+  LOG_LEVEL: "${LOG_LEVEL:-warning}"
+
+  DB_CONNECTION: "pgsql"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_DATABASE: "${DB_DATABASE:-gaeld}"
+  DB_USERNAME: "${DB_USERNAME:-gaeld}"
+  DB_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD is required}"
+
+  CACHE_STORE: "redis"
+  QUEUE_CONNECTION: "redis"
+  SESSION_DRIVER: "redis"
+  SESSION_LIFETIME: "120"
+  BROADCAST_DRIVER: "log"
+  FILESYSTEM_DISK: "local"
+
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: "${REDIS_PASSWORD:-null}"
+
+  SCOUT_DRIVER: "${SCOUT_DRIVER:-meilisearch}"
+  SCOUT_QUEUE: "true"
+  MEILISEARCH_HOST: "http://meilisearch:7700"
+  MEILISEARCH_KEY: "${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required}"
+
+  MAIL_MAILER: "${MAIL_MAILER:-log}"
+  MAIL_HOST: "${MAIL_HOST:-}"
+  MAIL_PORT: "${MAIL_PORT:-587}"
+  MAIL_USERNAME: "${MAIL_USERNAME:-}"
+  MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
+  MAIL_ENCRYPTION: "${MAIL_ENCRYPTION:-tls}"
+  MAIL_FROM_ADDRESS: "${MAIL_FROM_ADDRESS:-noreply@gaeld.tachly.app}"
+  MAIL_FROM_NAME: "Gäld"
+
+  # Feature flags — CE evaluation
+  FEATURE_SAAS: "false"
+  FEATURE_API_ACCESS: "true"
+  FEATURE_BANK_SYNC: "${FEATURE_BANK_SYNC:-false}"
+  FEATURE_AUTOMATION: "${FEATURE_AUTOMATION:-false}"
+  FEATURE_MULTI_CURRENCY: "${FEATURE_MULTI_CURRENCY:-false}"
+  FEATURE_AUTO_RECONCILIATION: "${FEATURE_AUTO_RECONCILIATION:-false}"
+  FEATURE_RULE_ENGINE: "${FEATURE_RULE_ENGINE:-false}"
+
+  ACCOUNTING_CURRENCY: "CHF"
+  FISCAL_YEAR_START: "01-01"
+
+  TESSERACT_BINARY: "/usr/bin/tesseract"
+  TESSERACT_LANG: "deu+fra+eng"
+
+  WEBAUTHN_NAME: "Gäld"
+  WEBAUTHN_ID: "${WEBAUTHN_ID:-localhost}"
+
+  SANCTUM_TOKEN_EXPIRATION: "10080"
+  PLUGINS_ENABLED: "true"
+  ACTIVITY_LOGGER_ENABLED: "true"
+  DOCS_BASE_URL: "https://docs.gaeld.ch"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GAELD_VERSION: "${GAELD_VERSION:-v3.6.6}"
+    image: gaeld-eval:latest
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      GAELD_ROLE: "web"
+      GAELD_AUTO_INSTALL: "${GAELD_AUTO_INSTALL:-true}"
+    expose:
+      - "8080"
+    volumes:
+      - gaeld-storage:/var/www/html/storage/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 90s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GAELD_VERSION: "${GAELD_VERSION:-v3.6.6}"
+    image: gaeld-eval:latest
+    restart: unless-stopped
+    command: ["php", "artisan", "horizon"]
+    environment:
+      <<: *app-env
+      GAELD_ROLE: "worker"
+      GAELD_AUTO_INSTALL: "false"
+    volumes:
+      - gaeld-storage:/var/www/html/storage/app
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "php artisan horizon:status | grep -q running"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-gaeld}"
+      POSTGRES_USER: "${DB_USERNAME:-gaeld}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD is required}"
+    volumes:
+      - gaeld-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-gaeld} -d ${DB_DATABASE:-gaeld}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    volumes:
+      - gaeld-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: "${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required}"
+      MEILI_ENV: "production"
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - gaeld-meili:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7700/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  gaeld-db:
+  gaeld-redis:
+  gaeld-meili:
+  gaeld-storage:
