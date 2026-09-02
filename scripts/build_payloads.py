@@ -59,6 +59,7 @@ out.append({"idem": "glastar-opening-2026", "body": {
 rows = list(csv.reader(open(CSV, encoding="utf-8-sig"), delimiter=";"))
 hdr = rows[0]
 n = 0
+seen_refs = {}
 for r in rows[1:]:
     if not r or not r[0].strip():
         continue
@@ -69,6 +70,12 @@ for r in rows[1:]:
     haben = acc(rec["Haben"])
     a = amt(rec["Betrag"])
     beleg = (rec.get("Referenz / Beleg") or "").strip()
+    # Gäld enforces `reference` unique per journal entry; cashctrl invoice
+    # numbers are not unique (e.g. RE-2602091 appears twice). Suffix repeats.
+    if beleg:
+        seen_refs[beleg] = seen_refs.get(beleg, 0) + 1
+        if seen_refs[beleg] > 1:
+            beleg = f"{beleg}/{seen_refs[beleg]}"
     desc = (rec.get("Beschreibung") or "").strip()
     gp = (rec.get("Geschäftspartner") or "").strip()
     full_desc = desc + (f" [{gp}]" if gp else "")
