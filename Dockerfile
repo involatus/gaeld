@@ -87,7 +87,13 @@ RUN php artisan package:discover --ansi \
 COPY docker/nginx.conf     /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/entrypoint.sh  /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+ # nginx workers run as www-data (see nginx.conf) but the Alpine package
+ # creates /var/lib/nginx owned by nginx:nginx mode 0700 — so www-data can't
+ # traverse it to spool a buffered request body, and any multipart upload
+ # larger than client_body_buffer_size 500s. Hand the whole tree to www-data.
+ && mkdir -p /var/lib/nginx/tmp/client_body /run/nginx \
+ && chown -R www-data:www-data /var/lib/nginx /run/nginx
 
 ENV TESSERACT_BINARY=/usr/bin/tesseract \
     TESSERACT_LANG=deu+fra+eng
