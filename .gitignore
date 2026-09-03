@@ -2,3 +2,5 @@
 .env.*
 !.env.example
 scripts/payloads.ndjson
+scripts/camt-real.xml
+scripts/*.pdf
