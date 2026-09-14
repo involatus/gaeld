@@ -11,7 +11,7 @@
 # container (php artisan horizon) — see docker-compose.yml.
 
 # renovate: datasource=github-releases depName=Scanix/Gaeld
-ARG GAELD_VERSION=v3.6.6
+ARG GAELD_VERSION=v3.8.6
 
 ########################  stage: src  ########################
 FROM alpine:3.20 AS src
