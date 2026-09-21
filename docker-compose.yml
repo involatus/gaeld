@@ -85,6 +85,8 @@ services:
         GAELD_VERSION: "${GAELD_VERSION:-v3.8.6}"
     image: gaeld-eval-web:latest
     restart: unless-stopped
+    mem_limit: 768m
+    cpus: "1.0"
     environment:
       <<: *app-env
       GAELD_ROLE: "web"
@@ -115,6 +117,8 @@ services:
         GAELD_VERSION: "${GAELD_VERSION:-v3.8.6}"
     image: gaeld-eval-worker:latest
     restart: unless-stopped
+    mem_limit: 768m
+    cpus: "1.0"
     command: ["php", "artisan", "horizon"]
     environment:
       <<: *app-env
@@ -135,6 +139,8 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.0"
     environment:
       POSTGRES_DB: "${DB_DATABASE:-gaeld}"
       POSTGRES_USER: "${DB_USERNAME:-gaeld}"
@@ -150,6 +156,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
     command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
     volumes:
       - gaeld-redis:/data
@@ -162,6 +170,8 @@ services:
   meilisearch:
     image: getmeili/meilisearch:v1.10
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: "0.5"
     environment:
       MEILI_MASTER_KEY: "${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required}"
       MEILI_ENV: "production"
