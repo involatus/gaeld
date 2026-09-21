@@ -76,6 +76,11 @@ x-app-env: &app-env
   ACTIVITY_LOGGER_ENABLED: "true"
   DOCS_BASE_URL: "https://docs.gaeld.ch"
 
+  # TachlyIntegration (see tachly-integration/) — shared secret gating
+  # /internal/tachly/*. Only Tachly's own server and this container know it;
+  # never returned in any API response, never a per-club credential.
+  TACHLY_INTERNAL_SHARED_SECRET: "${TACHLY_INTERNAL_SHARED_SECRET:?TACHLY_INTERNAL_SHARED_SECRET is required}"
+
 services:
   web:
     build:

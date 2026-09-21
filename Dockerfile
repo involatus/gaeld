@@ -23,6 +23,17 @@ RUN curl -fsSL "https://github.com/Scanix/Gaeld/archive/refs/tags/${GAELD_VERSIO
  && rm /tmp/g.tgz \
  && test -f /src/artisan
 
+# --- TachlyIntegration: first-party automation layer (see tachly-integration/README.md) ---
+# Lands entirely under app/Domains/TachlyIntegration/ (composer.json's existing
+# "App\\": "app/" PSR-4 rule autoloads it, no composer.json change needed) plus
+# one full-file replacement of bootstrap/providers.php to register it. Must
+# happen here in the src stage, before the vendor stage's
+# `composer install --optimize-autoloader` runs — an optimized autoloader
+# bakes in whatever classes exist under app/ at install time, so anything
+# copied in later would silently fail to autoload.
+COPY tachly-integration/app/Domains/TachlyIntegration/ /src/app/Domains/TachlyIntegration/
+COPY tachly-integration/bootstrap/providers.php /src/bootstrap/providers.php
+
 ########################  stage: assets  ########################
 FROM node:24-alpine AS assets
 RUN corepack enable

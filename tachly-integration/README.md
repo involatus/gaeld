@@ -1,0 +1,82 @@
+# TachlyIntegration
+
+First-party automation layer for [Gäld](https://gaeld.ch) Community Edition
+(AGPL-3.0), closing the `/api/v1` gaps Tachly needs to provision a club's
+Gäld Organization without a human in the web UI or `php artisan tinker`:
+org creation, chart-of-accounts extension, bank-account creation, and
+org-scoped API token bootstrap/rotation.
+
+It is not a fork of `Scanix/Gaeld` — it's a small directory of new files
+layered into the image at build time (see `../Dockerfile`), landing inside
+Gäld's own `App\Domains\` namespace convention so it autoloads via the
+existing `composer.json` PSR-4 rule with zero Composer changes. The only
+upstream file touched at all is `bootstrap/providers.php`, and even that is
+a full-file replacement (see `bootstrap/providers.php` in this directory),
+not a patch — so the diff against upstream is always one plain, reviewable
+file.
+
+## Why this exists
+
+The Gäld evaluation (`../docs/gaeld-migration-evaluation.md`) found the
+public API is read-mostly for exactly the things a per-club provisioning
+flow needs to write. Rather than wait on the vendor (a request for these is
+already drafted at `../docs/api-feature-request-draft.md`), this package
+implements them directly against Gäld's own internal Eloquent
+models/services — the same ones the web UI itself calls.
+
+## AGPL
+
+Gäld CE is AGPL-3.0-or-later. This package is a modification bundled into a
+network service (`gaeld.tachly.app`) that indirectly serves outside users
+through Tachly — squarely within §13's source-availability trigger. **This
+directory is published as its own public repository** rather than kept
+private, both to satisfy that obligation cleanly and because several pieces
+(account/bank-account creation, first-token bootstrap) are close enough to
+upstreamable that filing them as real PRs against `Scanix/Gaeld` is
+plausible.
+
+## What it adds
+
+- `app/Domains/TachlyIntegration/TachlyIntegrationServiceProvider.php` —
+  registers everything below; loads its own migrations and routes so no
+  other upstream file needs touching.
+- `Http/Controllers/ProvisionController.php` + `Services/ClubProvisioningService.php`
+  — `POST /internal/tachly/organizations` (idempotent — safe to retry with
+  the same `tachly_club_id`) and `POST /internal/tachly/organizations/{id}/rotate-token`.
+- `Http/Middleware/VerifyInternalSharedSecret.php` — gates the whole
+  `/internal/tachly/*` group with a shared secret (`TACHLY_INTERNAL_SHARED_SECRET`
+  env var), never the public `/api/v1` auth path.
+- `Console/Commands/ProvisionClub.php` — the same provisioning logic as an
+  `artisan tachly:provision-club` command, for ops/disaster-recovery from
+  the Coolify web terminal when Tachly's server can't be reached.
+- `Console/Commands/VerifyCompat.php` — run `artisan tachly:verify-compat`
+  once after every `GAELD_VERSION` bump, before the new image reaches
+  `gaeld.tachly.app`. Asserts every upstream class/method/column/provider
+  this package depends on still exists with the expected shape. **This does
+  not replace a real second-org provisioning test after a version bump** —
+  it only catches "the shape changed", not "the behavior changed".
+- `database/migrations/` — adds a nullable, unique `tachly_club_id` column
+  to `organizations` (the external key linking a Gäld org back to its
+  Tachly club).
+
+## A non-obvious wiring detail
+
+`PersonalAccessToken` stamps `organization_id` from the bound
+`CurrentOrganization` service **at insert time** (the column is `NOT NULL`,
+and the real web flow gets this from `EnsureApiOrganization`/
+`EnsureHasOrganization` middleware). This internal route group has no such
+middleware, so `ClubProvisioningService::mintOrgToken()` binds
+`CurrentOrganization` explicitly before calling `createToken()` — omitting
+this fails with a `NOT NULL` constraint violation on `personal_access_tokens.organization_id`.
+Found by testing against a real throwaway stack before this ever touched
+`gaeld.tachly.app` — see the M2 verification steps in the productionization
+plan.
+
+## Testing
+
+Never test against `gaeld.tachly.app` — it holds GlaStar Flyers' real,
+reconciled 2026 books. Build and run a throwaway local stack instead
+(`docker compose -p <scratch-name> up --build`, with a host port published
+for `web` via a local override file), provision two synthetic
+organizations, and confirm zero cross-org data leakage across accounts,
+bank accounts, and journal entries before trusting any change here.
