@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class ProvisionController extends Controller
@@ -32,20 +33,35 @@ class ProvisionController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $validated = Validator::make($request->all(), [
-            'tachly_club_id' => ['required', 'string', 'max:255'],
-            'club_name' => ['required', 'string', 'max:255'],
-            'owner_email' => ['required', 'email', 'max:255'],
-            'owner_name' => ['required', 'string', 'max:255'],
-            'iban' => ['required', 'string', 'max:34'],
-            'qr_iban' => ['nullable', 'string', 'max:34'],
-            'locale' => ['nullable', 'string', 'in:en,fr,de,it'],
-            'bank_ledger_account_code' => ['nullable', 'string', 'max:20'],
-            'extra_accounts' => ['nullable', 'array'],
-            'extra_accounts.*.code' => ['required_with:extra_accounts', 'string', 'max:20'],
-            'extra_accounts.*.name' => ['required_with:extra_accounts', 'string', 'max:255'],
-            'extra_accounts.*.type' => ['required_with:extra_accounts', 'string', 'in:'.implode(',', array_column(AccountType::cases(), 'value'))],
-        ])->validate();
+        // Validated and rendered by hand, not Laravel's default exception
+        // renderer: this route lives under /internal/tachly/*, not /api/*,
+        // so upstream's ValidationException renderable (scoped to
+        // request()->is('api/*') in bootstrap/app.php) never fires here, and
+        // this route group carries no session middleware for the web
+        // fallback (redirect back with flashed errors) to work either — both
+        // produced a bare 500 until this was caught explicitly.
+        try {
+            $validated = Validator::make($request->all(), [
+                'tachly_club_id' => ['required', 'string', 'max:255'],
+                'club_name' => ['required', 'string', 'max:255'],
+                'owner_email' => ['required', 'email', 'max:255'],
+                'owner_name' => ['required', 'string', 'max:255'],
+                'iban' => ['required', 'string', 'max:34'],
+                'qr_iban' => ['nullable', 'string', 'max:34'],
+                'locale' => ['nullable', 'string', 'in:en,fr,de,it'],
+                'bank_ledger_account_code' => ['nullable', 'string', 'max:20'],
+                'extra_accounts' => ['nullable', 'array'],
+                'extra_accounts.*.code' => ['required_with:extra_accounts', 'string', 'max:20'],
+                'extra_accounts.*.name' => ['required_with:extra_accounts', 'string', 'max:255'],
+                'extra_accounts.*.type' => ['required_with:extra_accounts', 'string', 'in:'.implode(',', array_column(AccountType::cases(), 'value'))],
+            ])->validate();
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'code' => 'validation_error',
+                'errors' => $e->errors(),
+            ], $e->status);
+        }
 
         $result = $this->provisioningService->provision(
             tachlyClubId: $validated['tachly_club_id'],
