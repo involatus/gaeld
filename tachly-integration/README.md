@@ -63,6 +63,21 @@ plausible.
 - `database/migrations/` — adds a nullable, unique `tachly_club_id` column
   to `organizations` (the external key linking a Gäld org back to its
   Tachly club).
+- `Services/TachlyInvoicePdfRenderer.php` + `Support/TachlyInvoicePdfStyle.php`
+  (TAC-228) — Tachly-branded invoice PDFs (navy `#0F172A` / sky-blue `#5BB8E8`,
+  Tachly logo instead of `$organization->logo_path`). Bound over the upstream
+  `InvoicePdfRenderer` in the service provider's `register()` — every invoice
+  PDF this instance generates, for every org, renders with Tachly's brand
+  (correct here: this instance exists specifically for Tachly clubs). Not a
+  thin override: `InvoicePdfRenderer`'s `$locale`/`t()` are `private`, and every
+  `render*` method references `InvoicePdfStyle`'s color constants inline, so
+  this is a full reimplementation, not a one-method patch — see the class's
+  own doc comment. Column widths/positions/fold-marks are kept identical to
+  upstream (Swiss letter-fold + QR-bill layout, not branding). Reaches this
+  invoice PDF endpoint via the **public** `GET /api/v1/invoices/{id}/pdf` —
+  confirmed live in the actual Gäld source that this is *not* web-UI-only
+  (an earlier eval doc said otherwise; that was stale) — so no new internal
+  route was needed for this.
 
 ## A non-obvious wiring detail
 

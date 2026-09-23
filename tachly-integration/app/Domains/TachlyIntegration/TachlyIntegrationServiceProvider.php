@@ -2,9 +2,11 @@
 
 namespace App\Domains\TachlyIntegration;
 
+use App\Domains\Invoicing\Services\InvoicePdfRenderer;
 use App\Domains\TachlyIntegration\Console\Commands\ProvisionClub;
 use App\Domains\TachlyIntegration\Console\Commands\VerifyCompat;
 use App\Domains\TachlyIntegration\Http\Middleware\VerifyInternalSharedSecret;
+use App\Domains\TachlyIntegration\Services\TachlyInvoicePdfRenderer;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -25,6 +27,12 @@ class TachlyIntegrationServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/tachly-integration.php', 'tachly-integration');
+
+        // TAC-228: every invoice PDF this instance generates — for every org, via
+        // the public GET /api/v1/invoices/{id}/pdf (InvoicePdfApiController calls
+        // the same GenerateQrInvoicePdfAction) — renders with Tachly's brand.
+        // Correct here: this instance exists specifically for Tachly clubs.
+        $this->app->bind(InvoicePdfRenderer::class, TachlyInvoicePdfRenderer::class);
     }
 
     public function boot(): void
