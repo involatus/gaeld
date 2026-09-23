@@ -6,6 +6,7 @@ use App\Domains\Invoicing\Services\InvoicePdfRenderer;
 use App\Domains\TachlyIntegration\Console\Commands\ProvisionClub;
 use App\Domains\TachlyIntegration\Console\Commands\VerifyCompat;
 use App\Domains\TachlyIntegration\Http\Middleware\BlockPublicRegistration;
+use App\Domains\TachlyIntegration\Http\Middleware\RenderInternalExceptionsAsJson;
 use App\Domains\TachlyIntegration\Http\Middleware\VerifyInternalSharedSecret;
 use App\Domains\TachlyIntegration\Services\TachlyInvoicePdfRenderer;
 use Illuminate\Support\Facades\Route;
@@ -53,7 +54,7 @@ class TachlyIntegrationServiceProvider extends ServiceProvider
         // separate, internal-only channel gated by a shared secret that only
         // Tachly's server and this Gäld container know.
         Route::prefix('internal/tachly')
-            ->middleware(VerifyInternalSharedSecret::class)
+            ->middleware([RenderInternalExceptionsAsJson::class, VerifyInternalSharedSecret::class])
             ->group(__DIR__.'/routes/internal.php');
 
         if ($this->app->runningInConsole()) {

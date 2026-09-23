@@ -57,6 +57,12 @@ plausible.
 - `Http/Middleware/VerifyInternalSharedSecret.php` — gates the whole
   `/internal/tachly/*` group with a shared secret (`TACHLY_INTERNAL_SHARED_SECRET`
   env var), never the public `/api/v1` auth path.
+- `Http/Middleware/RenderInternalExceptionsAsJson.php` — wraps the whole
+  `/internal/tachly/*` group. Uncaught exceptions there render as opaque
+  Inertia HTML by default (route sits outside `bootstrap/app.php`'s `api/*`
+  exception scope). Always JSON here instead, with `message`/`exception`/
+  `file`/`line`/`trace` when `APP_DEBUG` is on — no more edit-deploy-revert
+  cycle to see a real error.
 - `Http/Middleware/BlockPublicRegistration.php` — appended to the `web`
   middleware group in `boot()`; blocks upstream's own `/register` **and**
   `/setup` (GET+POST, by route name). This instance is Tachly-managed only.
