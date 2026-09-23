@@ -34,3 +34,12 @@ docker compose exec web curl -fsS http://localhost:8080/api/v1/
 - Bind the domain to the `web` service on port `8080`.
 - `TRUSTED_PROXIES=*` is safe only because the container is reachable only
   through the proxy.
+
+## License
+
+Gäld Community Edition (upstream `Scanix/Gaeld`) is AGPL-3.0-or-later. This
+repo builds and deploys it, and `tachly-integration/` adds first-party
+modifications bundled into a live network service (`gaeld.tachly.app`) —
+squarely within §13's source-availability trigger, which is why this repo is
+public. See `LICENSE` and `tachly-integration/README.md`'s own "AGPL"
+section for the detail.
