@@ -5,6 +5,7 @@ namespace App\Domains\TachlyIntegration;
 use App\Domains\Invoicing\Services\InvoicePdfRenderer;
 use App\Domains\TachlyIntegration\Console\Commands\ProvisionClub;
 use App\Domains\TachlyIntegration\Console\Commands\VerifyCompat;
+use App\Domains\TachlyIntegration\Http\Middleware\BlockPublicRegistration;
 use App\Domains\TachlyIntegration\Http\Middleware\VerifyInternalSharedSecret;
 use App\Domains\TachlyIntegration\Services\TachlyInvoicePdfRenderer;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,14 @@ class TachlyIntegrationServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');
+
+        // This instance is Tachly-managed only — no one should be able to
+        // self-register a Gäld account here (see BlockPublicRegistration's
+        // own doc comment for why FEATURE_SAAS=false alone doesn't gate this
+        // upstream). Appended to the 'web' group rather than the /register
+        // routes directly: those are registered by upstream's own
+        // routes/web.php, which this package never touches.
+        $this->app['router']->pushMiddlewareToGroup('web', BlockPublicRegistration::class);
 
         // Deliberately NOT the public `api.php` v1 surface (no `/v1` prefix,
         // no `auth:sanctum`, no `feature:api_access` gate) — this is a

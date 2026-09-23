@@ -57,6 +57,11 @@ plausible.
 - `Http/Middleware/VerifyInternalSharedSecret.php` — gates the whole
   `/internal/tachly/*` group with a shared secret (`TACHLY_INTERNAL_SHARED_SECRET`
   env var), never the public `/api/v1` auth path.
+- `Http/Middleware/BlockPublicRegistration.php` — appended to the `web`
+  middleware group in `boot()`; blocks upstream's own `/register` (GET+POST)
+  by route name. This instance is Tachly-managed only, and Gäld's Community
+  Edition leaves self-registration wide open unless `FEATURE_SAAS` is on
+  (which this deployment deliberately isn't).
 - `Console/Commands/ProvisionClub.php` — the same provisioning logic as an
   `artisan tachly:provision-club` command, for ops/disaster-recovery from
   the Coolify web terminal when Tachly's server can't be reached.
