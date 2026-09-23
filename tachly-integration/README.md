@@ -58,10 +58,13 @@ plausible.
   `/internal/tachly/*` group with a shared secret (`TACHLY_INTERNAL_SHARED_SECRET`
   env var), never the public `/api/v1` auth path.
 - `Http/Middleware/BlockPublicRegistration.php` — appended to the `web`
-  middleware group in `boot()`; blocks upstream's own `/register` (GET+POST)
-  by route name. This instance is Tachly-managed only, and Gäld's Community
-  Edition leaves self-registration wide open unless `FEATURE_SAAS` is on
-  (which this deployment deliberately isn't).
+  middleware group in `boot()`; blocks upstream's own `/register` **and**
+  `/setup` (GET+POST, by route name). This instance is Tachly-managed only.
+  Community Edition leaves `/register` wide open unless `FEATURE_SAAS` is on
+  (which this deployment deliberately isn't), and `/setup` — which creates
+  the first user *and* Organization and logs them straight in — is gated
+  only by `Organization::exists()`, meaning it opens up the moment the org
+  count hits zero (e.g. right after `deprovision()` clears test data).
 - `Console/Commands/ProvisionClub.php` — the same provisioning logic as an
   `artisan tachly:provision-club` command, for ops/disaster-recovery from
   the Coolify web terminal when Tachly's server can't be reached.
