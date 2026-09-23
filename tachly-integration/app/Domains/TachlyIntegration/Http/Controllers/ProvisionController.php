@@ -30,6 +30,9 @@ class ProvisionController extends Controller
      * @bodyParam locale string default: de
      * @bodyParam bank_ledger_account_code string GL account the bank account posts to. Defaults to the seeded "Bank Account CHF" (1020).
      * @bodyParam extra_accounts array [{code, name, type: asset|liability|equity|revenue|expense}, ...]
+     * @bodyParam address_street string The club's own creditor address — required for Swiss QR-bill PDF generation to work at all (`creditor.postalCode`/`creditor.city` must not be blank).
+     * @bodyParam address_postal_code string
+     * @bodyParam address_city string
      */
     public function store(Request $request): JsonResponse
     {
@@ -50,6 +53,9 @@ class ProvisionController extends Controller
                 'qr_iban' => ['nullable', 'string', 'max:34'],
                 'locale' => ['nullable', 'string', 'in:en,fr,de,it'],
                 'bank_ledger_account_code' => ['nullable', 'string', 'max:20'],
+                'address_street' => ['nullable', 'string', 'max:255'],
+                'address_postal_code' => ['nullable', 'string', 'max:20'],
+                'address_city' => ['nullable', 'string', 'max:255'],
                 'extra_accounts' => ['nullable', 'array'],
                 'extra_accounts.*.code' => ['required_with:extra_accounts', 'string', 'max:20'],
                 'extra_accounts.*.name' => ['required_with:extra_accounts', 'string', 'max:255'],
@@ -73,6 +79,9 @@ class ProvisionController extends Controller
             extraAccounts: $validated['extra_accounts'] ?? [],
             locale: $validated['locale'] ?? 'de',
             bankLedgerAccountCode: $validated['bank_ledger_account_code'] ?? null,
+            addressStreet: $validated['address_street'] ?? null,
+            addressPostalCode: $validated['address_postal_code'] ?? null,
+            addressCity: $validated['address_city'] ?? null,
         );
 
         return response()->json($result, $result['was_already_provisioned'] ? 200 : 201);

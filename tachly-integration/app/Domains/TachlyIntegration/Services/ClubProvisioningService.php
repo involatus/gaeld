@@ -16,6 +16,7 @@ use App\Domains\Users\DTOs\CreateUserData;
 use App\Domains\Users\Models\User;
 use App\Domains\Users\Services\UserService;
 use App\Http\Middleware\Api\TokenPermissionMap;
+use App\Support\AddressData;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -49,10 +50,14 @@ class ClubProvisioningService
         array $extraAccounts = [],
         string $locale = 'de',
         ?string $bankLedgerAccountCode = null,
+        ?string $addressStreet = null,
+        ?string $addressPostalCode = null,
+        ?string $addressCity = null,
     ): array {
         return DB::transaction(function () use (
             $tachlyClubId, $clubName, $ownerEmail, $ownerName,
             $iban, $qrIban, $extraAccounts, $locale, $bankLedgerAccountCode,
+            $addressStreet, $addressPostalCode, $addressCity,
         ) {
             $organization = Organization::withoutGlobalScopes()
                 ->where('tachly_club_id', $tachlyClubId)
@@ -64,6 +69,12 @@ class ClubProvisioningService
             if (! $wasAlreadyProvisioned) {
                 $organization = app(OrganizationService::class)->create($owner, new CreateOrganizationData(
                     name: $clubName,
+                    addressData: new AddressData(
+                        address: $addressStreet,
+                        city: $addressCity,
+                        postalCode: $addressPostalCode,
+                        country: 'CH',
+                    ),
                     country: 'CH',
                     currency: 'CHF',
                     locale: $locale,
@@ -77,6 +88,22 @@ class ClubProvisioningService
             } else {
                 // Idempotent retry: system accounts may already exist, this is a no-op then.
                 app(OrganizationSetupService::class)->ensureSystemAccounts($organization);
+            }
+
+            // Always resync the creditor address (not just on first provisioning): the
+            // Swiss QR-bill renderer needs `address`/`postal_code`/`city` populated on
+            // the organization itself or every PDF fetch 422s ("creditor.postalCode:
+            // This value should not be blank."). Patched directly on the model, not
+            // through OrganizationService::update()/UpdateOrganizationData — that DTO
+            // defaults require_two_factor/default_payment_terms_days/business_type on
+            // every call, which would silently clobber anything an admin set by hand
+            // via the Gäld web UI (now reachable since TAC-226's login-link flow).
+            if ($addressStreet !== null || $addressPostalCode !== null || $addressCity !== null) {
+                $organization->forceFill([
+                    'address' => $addressStreet,
+                    'postal_code' => $addressPostalCode,
+                    'city' => $addressCity,
+                ])->save();
             }
 
             $this->applyExtraAccounts($organization, $extraAccounts);
