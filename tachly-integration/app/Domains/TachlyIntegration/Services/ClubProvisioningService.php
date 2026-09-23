@@ -50,14 +50,12 @@ class ClubProvisioningService
         array $extraAccounts = [],
         string $locale = 'de',
         ?string $bankLedgerAccountCode = null,
-        ?string $addressStreet = null,
-        ?string $addressPostalCode = null,
-        ?string $addressCity = null,
+        ?AddressData $address = null,
     ): array {
         return DB::transaction(function () use (
             $tachlyClubId, $clubName, $ownerEmail, $ownerName,
             $iban, $qrIban, $extraAccounts, $locale, $bankLedgerAccountCode,
-            $addressStreet, $addressPostalCode, $addressCity,
+            $address,
         ) {
             $organization = Organization::withoutGlobalScopes()
                 ->where('tachly_club_id', $tachlyClubId)
@@ -69,12 +67,7 @@ class ClubProvisioningService
             if (! $wasAlreadyProvisioned) {
                 $organization = app(OrganizationService::class)->create($owner, new CreateOrganizationData(
                     name: $clubName,
-                    addressData: new AddressData(
-                        address: $addressStreet,
-                        city: $addressCity,
-                        postalCode: $addressPostalCode,
-                        country: 'CH',
-                    ),
+                    addressData: $address,
                     country: 'CH',
                     currency: 'CHF',
                     locale: $locale,
@@ -98,11 +91,11 @@ class ClubProvisioningService
             // defaults require_two_factor/default_payment_terms_days/business_type on
             // every call, which would silently clobber anything an admin set by hand
             // via the Gäld web UI (now reachable since TAC-226's login-link flow).
-            if ($addressStreet !== null || $addressPostalCode !== null || $addressCity !== null) {
+            if ($address !== null && ($address->address !== null || $address->postalCode !== null || $address->city !== null)) {
                 $organization->forceFill([
-                    'address' => $addressStreet,
-                    'postal_code' => $addressPostalCode,
-                    'city' => $addressCity,
+                    'address' => $address->address,
+                    'postal_code' => $address->postalCode,
+                    'city' => $address->city,
                 ])->save();
             }
 

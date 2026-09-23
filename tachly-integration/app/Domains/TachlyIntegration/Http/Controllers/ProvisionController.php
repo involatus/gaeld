@@ -5,6 +5,7 @@ namespace App\Domains\TachlyIntegration\Http\Controllers;
 use App\Domains\Accounting\Enums\AccountType;
 use App\Domains\TachlyIntegration\Services\ClubProvisioningService;
 use App\Http\Controllers\Controller;
+use App\Support\AddressData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -79,9 +80,12 @@ class ProvisionController extends Controller
             extraAccounts: $validated['extra_accounts'] ?? [],
             locale: $validated['locale'] ?? 'de',
             bankLedgerAccountCode: $validated['bank_ledger_account_code'] ?? null,
-            addressStreet: $validated['address_street'] ?? null,
-            addressPostalCode: $validated['address_postal_code'] ?? null,
-            addressCity: $validated['address_city'] ?? null,
+            address: new AddressData(
+                address: $validated['address_street'] ?? null,
+                city: $validated['address_city'] ?? null,
+                postalCode: $validated['address_postal_code'] ?? null,
+                country: 'CH',
+            ),
         );
 
         return response()->json($result, $result['was_already_provisioned'] ? 200 : 201);
