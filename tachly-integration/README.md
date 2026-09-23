@@ -43,11 +43,17 @@ plausible.
 - `Http/Controllers/ProvisionController.php` + `Services/ClubProvisioningService.php`
   — `POST /internal/tachly/organizations` (idempotent — safe to retry with
   the same `tachly_club_id`), `POST /internal/tachly/organizations/{id}/rotate-token`,
-  and `POST /internal/tachly/organizations/{id}/send-login-link` (triggers Gäld's own
+  `POST /internal/tachly/organizations/{id}/send-login-link` (triggers Gäld's own
   password-reset email to the org's owner user, so a club admin can get a real,
   working Gäld login for the web-UI-only screens — reports, reconciliation. The
   owner's password is a throwaway random string until this is called; Tachly never
-  sees or stores whatever password they end up choosing).
+  sees or stores whatever password they end up choosing), and
+  `DELETE /internal/tachly/organizations/{id}` (ops-only — permanently,
+  irreversibly hard-deletes the org and everything under it via cascading FKs;
+  no Tachly UI calls this. Deliberately a real `forceDelete()`, not the soft-delete
+  Gäld's own `DeleteOrganizationAction` uses elsewhere — a soft-deleted org is
+  still found by this same package's `provision()` lookup and would be silently
+  reused instead of provisioning fresh).
 - `Http/Middleware/VerifyInternalSharedSecret.php` — gates the whole
   `/internal/tachly/*` group with a shared secret (`TACHLY_INTERNAL_SHARED_SECRET`
   env var), never the public `/api/v1` auth path.

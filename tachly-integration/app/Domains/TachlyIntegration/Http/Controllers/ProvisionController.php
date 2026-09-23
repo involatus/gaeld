@@ -126,4 +126,25 @@ class ProvisionController extends Controller
 
         return response()->json(['message' => 'Login link sent.']);
     }
+
+    /**
+     * Permanently, irreversibly deletes the Gäld Organization for a Tachly
+     * club — a real hard delete (every invoice, contact, account, journal
+     * entry, bank account, and org-scoped token), not a soft-delete. Ops-only:
+     * no Tachly UI calls this today. See
+     * `ClubProvisioningService::deprovision()` for exactly what it does and
+     * does not touch.
+     *
+     * @urlParam tachlyClubId string required
+     */
+    public function destroy(string $tachlyClubId): JsonResponse
+    {
+        try {
+            $this->provisioningService->deprovision($tachlyClubId);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage(), 'code' => 'not_found'], 404);
+        }
+
+        return response()->json(['message' => 'Organization permanently deleted.']);
+    }
 }

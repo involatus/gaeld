@@ -156,6 +156,38 @@ class ClubProvisioningService
         Password::sendResetLink(['email' => $owner->email]);
     }
 
+    /**
+     * Permanently deletes the Gäld Organization for a Tachly club — a real,
+     * cascading hard delete (`forceDelete()`, bypassing Organization's own
+     * SoftDeletes), not the soft-delete `DeleteOrganizationAction` uses
+     * elsewhere in Gäld. Deliberately not the same operation: a soft-deleted
+     * org is still found by `provision()`'s own lookup
+     * (`Organization::withoutGlobalScopes()`, which strips the SoftDeletes
+     * scope along with every other one) and would be silently reused instead
+     * of provisioning fresh — exactly wrong for "delete this club's test data
+     * and start over." Every org-scoped table (`invoices`/`invoice_lines`,
+     * `accounts`/`journal_entries`/`transaction_lines`, `bank_accounts`/
+     * `bank_transactions`, `customers`, `suppliers`, `organization_users`,
+     * `personal_access_tokens`) has `organization_id` with
+     * `->cascadeOnDelete()`, so this one call is genuinely complete — no
+     * separate per-table cleanup needed. The owner User row is intentionally
+     * left intact (orphaned, no membership) so `findOrCreateOwner` reuses the
+     * same person on a later re-provision instead of erroring on a duplicate
+     * email.
+     */
+    public function deprovision(string $tachlyClubId): void
+    {
+        $organization = Organization::withoutGlobalScopes()
+            ->where('tachly_club_id', $tachlyClubId)
+            ->first();
+
+        if (! $organization) {
+            throw new InvalidArgumentException("No organization provisioned for tachly_club_id={$tachlyClubId}");
+        }
+
+        $organization->forceDelete();
+    }
+
     /** @return array{0: Organization, 1: User} */
     private function resolveOwner(string $tachlyClubId): array
     {
