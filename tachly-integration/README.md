@@ -42,7 +42,12 @@ plausible.
   other upstream file needs touching.
 - `Http/Controllers/ProvisionController.php` + `Services/ClubProvisioningService.php`
   — `POST /internal/tachly/organizations` (idempotent — safe to retry with
-  the same `tachly_club_id`) and `POST /internal/tachly/organizations/{id}/rotate-token`.
+  the same `tachly_club_id`), `POST /internal/tachly/organizations/{id}/rotate-token`,
+  and `POST /internal/tachly/organizations/{id}/send-login-link` (triggers Gäld's own
+  password-reset email to the org's owner user, so a club admin can get a real,
+  working Gäld login for the web-UI-only screens — reports, reconciliation. The
+  owner's password is a throwaway random string until this is called; Tachly never
+  sees or stores whatever password they end up choosing).
 - `Http/Middleware/VerifyInternalSharedSecret.php` — gates the whole
   `/internal/tachly/*` group with a shared secret (`TACHLY_INTERNAL_SHARED_SECRET`
   env var), never the public `/api/v1` auth path.

@@ -8,3 +8,4 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/organizations', [ProvisionController::class, 'store']);
 Route::post('/organizations/{tachlyClubId}/rotate-token', [ProvisionController::class, 'rotateToken']);
+Route::post('/organizations/{tachlyClubId}/send-login-link', [ProvisionController::class, 'sendLoginLink']);

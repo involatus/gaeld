@@ -93,4 +93,24 @@ class ProvisionController extends Controller
 
         return response()->json(['api_token' => $token]);
     }
+
+    /**
+     * Triggers Gäld's own password-reset email to the club's owner user, so they
+     * can set a real password and log into Gäld's web UI directly — for the
+     * reports/reconciliation screens that have no `/api/v1` equivalent. Tachly
+     * never sees or stores that password; this is purely "ask Gäld to email its
+     * own reset link", nothing new.
+     *
+     * @urlParam tachlyClubId string required
+     */
+    public function sendLoginLink(string $tachlyClubId): JsonResponse
+    {
+        try {
+            $this->provisioningService->sendLoginLink($tachlyClubId);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage(), 'code' => 'not_found'], 404);
+        }
+
+        return response()->json(['message' => 'Login link sent.']);
+    }
 }

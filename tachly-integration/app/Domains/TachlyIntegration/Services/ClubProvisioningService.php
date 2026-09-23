@@ -17,6 +17,7 @@ use App\Domains\Users\Models\User;
 use App\Domains\Users\Services\UserService;
 use App\Http\Middleware\Api\TokenPermissionMap;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -109,6 +110,35 @@ class ClubProvisioningService
      */
     public function rotateToken(string $tachlyClubId): string
     {
+        [$organization, $owner] = $this->resolveOwner($tachlyClubId);
+
+        return $this->mintOrgToken($owner, $organization);
+    }
+
+    /**
+     * Triggers Gäld's own standard password-reset email to the club's owner user —
+     * the same flow any Gäld user would use if they forgot their password
+     * (`Password::sendResetLink`, already fully wired: `PasswordResetController`,
+     * configured mailer, signed token). Nothing here is new auth machinery; this
+     * just calls it for a user whose password (a throwaway random string, see
+     * `findOrCreateOwner`) nobody has ever known. The admin clicks the emailed
+     * link, sets their own password, and can log into Gäld directly from then on
+     * (2FA optional on top, same as any other Gäld user) — for the reports/
+     * reconciliation screens that only exist in the web UI, not `/api/v1`.
+     *
+     * Safe to call repeatedly — each call just issues a fresh reset token:
+     * Gäld's own `password_reset_tokens` table invalidates the previous one.
+     */
+    public function sendLoginLink(string $tachlyClubId): void
+    {
+        [, $owner] = $this->resolveOwner($tachlyClubId);
+
+        Password::sendResetLink(['email' => $owner->email]);
+    }
+
+    /** @return array{0: Organization, 1: User} */
+    private function resolveOwner(string $tachlyClubId): array
+    {
         $organization = Organization::withoutGlobalScopes()
             ->where('tachly_club_id', $tachlyClubId)
             ->first();
@@ -124,7 +154,7 @@ class ClubProvisioningService
             throw new InvalidArgumentException("Organization {$organization->id} has no user to mint a token from.");
         }
 
-        return $this->mintOrgToken($owner, $organization);
+        return [$organization, $owner];
     }
 
     private function findOrCreateOwner(string $email, string $name, string $locale): User
