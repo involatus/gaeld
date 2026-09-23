@@ -169,10 +169,15 @@ class ClubProvisioningService
      * `accounts`/`journal_entries`/`transaction_lines`, `bank_accounts`/
      * `bank_transactions`, `customers`, `suppliers`, `organization_users`,
      * `personal_access_tokens`) has `organization_id` with
-     * `->cascadeOnDelete()`, so this one call is genuinely complete — no
-     * separate per-table cleanup needed. The owner User row is intentionally
-     * left intact (orphaned, no membership) so `findOrCreateOwner` reuses the
-     * same person on a later re-provision instead of erroring on a duplicate
+     * `->cascadeOnDelete()` — with one gap confirmed live: `transaction_lines
+     * .account_id` is `->restrictOnDelete()`, not cascade, and Postgres
+     * doesn't guarantee the sibling cascade through `journal_entries` clears
+     * those rows before the RESTRICT on `accounts` is checked (500'd on the
+     * first real attempt: "transaction_lines_account_id_foreign" violated).
+     * Cleared explicitly first, in the same transaction, so `forceDelete()`
+     * never races that ordering. The owner User row is intentionally left
+     * intact (orphaned, no membership) so `findOrCreateOwner` reuses the same
+     * person on a later re-provision instead of erroring on a duplicate
      * email.
      */
     public function deprovision(string $tachlyClubId): void
@@ -185,7 +190,13 @@ class ClubProvisioningService
             throw new InvalidArgumentException("No organization provisioned for tachly_club_id={$tachlyClubId}");
         }
 
-        $organization->forceDelete();
+        DB::transaction(function () use ($organization) {
+            DB::table('transaction_lines')
+                ->whereIn('account_id', DB::table('accounts')->where('organization_id', $organization->id)->select('id'))
+                ->delete();
+
+            $organization->forceDelete();
+        });
     }
 
     /** @return array{0: Organization, 1: User} */

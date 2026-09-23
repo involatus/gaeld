@@ -143,20 +143,6 @@ class ProvisionController extends Controller
             $this->provisioningService->deprovision($tachlyClubId);
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage(), 'code' => 'not_found'], 404);
-        } catch (\Throwable $e) {
-            // TEMPORARY diagnostic detail — this route lives outside the
-            // api/* exception-rendering scope (see the class doc comment on
-            // store()), so an unhandled exception here otherwise renders as
-            // an opaque Inertia error page with none of Laravel's own debug
-            // output, even with APP_DEBUG on. Revert before this endpoint is
-            // considered done.
-            return response()->json([
-                'message' => $e->getMessage(),
-                'exception' => get_class($e),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => array_slice(explode("\n", $e->getTraceAsString()), 0, 10),
-            ], 500);
         }
 
         return response()->json(['message' => 'Organization permanently deleted.']);
