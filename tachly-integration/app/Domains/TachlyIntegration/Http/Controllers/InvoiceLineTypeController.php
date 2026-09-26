@@ -4,7 +4,9 @@ namespace App\Domains\TachlyIntegration\Http\Controllers;
 
 use App\Domains\Invoicing\Enums\InvoiceLineType;
 use App\Domains\Invoicing\Enums\InvoiceStatus;
+use App\Domains\Invoicing\Enums\InvoiceType;
 use App\Domains\Invoicing\Models\Invoice;
+use App\Domains\Invoicing\Services\InvoiceNumberGenerator;
 use App\Domains\Organizations\Models\Organization;
 use App\Domains\Organizations\Services\CurrentOrganization;
 use App\Http\Controllers\Controller;
@@ -28,17 +30,20 @@ class InvoiceLineTypeController extends Controller
      * @urlParam tachlyClubId string required
      * @urlParam invoiceId string required Gäld invoice UUID (as returned by POST /invoices).
      * @bodyParam discount_positions int[] required 0-based position (in creation order) of each line to turn into a discount line.
+     * @bodyParam as_credit_note bool Turn the draft into a credit note (CN number, type credit_note). Used when the net is owed TO the customer: the caller inverts the lines so the net is positive; postToLedger then credits receivables by |total|.
      */
     public function applyDiscounts(Request $request, string $tachlyClubId, string $invoiceId): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'discount_positions' => ['present', 'array'],
             'discount_positions.*' => ['integer', 'min:0'],
+            'as_credit_note' => ['sometimes', 'boolean'],
         ]);
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first(), 'code' => 'validation_error'], 422);
         }
         $positions = array_map('intval', $validator->validated()['discount_positions']);
+        $asCreditNote = (bool) ($validator->validated()['as_credit_note'] ?? false);
 
         $organization = Organization::withoutGlobalScopes()->where('tachly_club_id', $tachlyClubId)->first();
         if ($organization === null) {
@@ -54,7 +59,7 @@ class InvoiceLineTypeController extends Controller
             return response()->json(['message' => 'Only draft invoices can be changed.', 'code' => 'not_draft'], 409);
         }
 
-        DB::transaction(function () use ($invoice, $positions) {
+        DB::transaction(function () use ($invoice, $positions, $asCreditNote, $organization) {
             $lines = $invoice->lines()->orderBy('sort_order')->orderBy('id')->get()->values();
             foreach ($positions as $position) {
                 $line = $lines->get($position);
@@ -65,6 +70,12 @@ class InvoiceLineTypeController extends Controller
                 $line->calculateAndSave();
             }
             $invoice->recalculate();
+
+            if ($asCreditNote) {
+                $invoice->type = InvoiceType::CreditNote;
+                $invoice->number = app(InvoiceNumberGenerator::class)->next((string) $organization->id, 'CN');
+                $invoice->save();
+            }
         });
 
         $invoice->refresh();
