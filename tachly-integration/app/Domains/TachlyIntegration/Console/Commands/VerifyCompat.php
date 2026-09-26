@@ -8,6 +8,12 @@ use App\Domains\Accounting\Models\Account;
 use App\Domains\Accounting\Services\ChartTemplateService;
 use App\Domains\Api\Enums\TokenType;
 use App\Domains\Banking\Models\BankAccount;
+use App\Domains\Invoicing\Actions\GenerateQrInvoicePdfAction;
+use App\Domains\Invoicing\Enums\InvoiceLineType;
+use App\Domains\Invoicing\Enums\InvoiceType;
+use App\Domains\Invoicing\Models\Invoice;
+use App\Domains\Invoicing\Services\InvoiceNumberGenerator;
+use App\Domains\Invoicing\Services\InvoicePdfRenderer;
 use App\Domains\Organizations\DTOs\CreateOrganizationData;
 use App\Domains\Organizations\Models\Organization;
 use App\Domains\Organizations\Services\OrganizationService;
@@ -52,6 +58,15 @@ class VerifyCompat extends Command
         $this->checkClassAndMethods(CreateOrganizationData::class, []);
         $this->checkClassAndMethods(CreateUserData::class, []);
         $this->checkClassAndMethods(TokenPermissionMap::class, ['normalize']);
+
+        // Invoice PDF + apply-discounts route (TachlyInvoicePdfRenderer, TachlyGenerateInvoicePdfAction,
+        // InvoiceLineTypeController) override/depend on these — a rename upstream must fail loudly here.
+        $this->checkClassAndMethods(InvoicePdfRenderer::class, ['setLocale', 'renderFoldMarks', 'renderInvoiceHeader', 'renderLineItems', 'renderTotals', 'renderFooter']);
+        $this->checkClassAndMethods(GenerateQrInvoicePdfAction::class, ['execute']);
+        $this->checkClassAndMethods(Invoice::class, ['recalculate', 'lines']);
+        $this->checkClassAndMethods(InvoiceNumberGenerator::class, ['next']);
+        $this->checkEnumCase(InvoiceType::class, 'CreditNote');
+        $this->checkEnumCase(InvoiceLineType::class, 'Discount');
 
         $this->checkEnumCase(TokenType::class, 'Organization');
         $this->checkEnumCases(AccountType::class, ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']);

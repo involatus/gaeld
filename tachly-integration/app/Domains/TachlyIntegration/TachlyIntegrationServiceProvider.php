@@ -2,12 +2,14 @@
 
 namespace App\Domains\TachlyIntegration;
 
+use App\Domains\Invoicing\Actions\GenerateQrInvoicePdfAction;
 use App\Domains\Invoicing\Services\InvoicePdfRenderer;
 use App\Domains\TachlyIntegration\Console\Commands\ProvisionClub;
 use App\Domains\TachlyIntegration\Console\Commands\VerifyCompat;
 use App\Domains\TachlyIntegration\Http\Middleware\BlockPublicRegistration;
 use App\Domains\TachlyIntegration\Http\Middleware\RenderInternalExceptionsAsJson;
 use App\Domains\TachlyIntegration\Http\Middleware\VerifyInternalSharedSecret;
+use App\Domains\TachlyIntegration\Services\TachlyGenerateInvoicePdfAction;
 use App\Domains\TachlyIntegration\Services\TachlyInvoicePdfRenderer;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -35,6 +37,9 @@ class TachlyIntegrationServiceProvider extends ServiceProvider
         // the same GenerateQrInvoicePdfAction) — renders with Tachly's brand.
         // Correct here: this instance exists specifically for Tachly clubs.
         $this->app->bind(InvoicePdfRenderer::class, TachlyInvoicePdfRenderer::class);
+
+        // Credit notes get no QR payment slip (see TachlyGenerateInvoicePdfAction).
+        $this->app->bind(GenerateQrInvoicePdfAction::class, TachlyGenerateInvoicePdfAction::class);
     }
 
     public function boot(): void
