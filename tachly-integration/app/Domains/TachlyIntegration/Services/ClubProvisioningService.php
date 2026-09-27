@@ -99,7 +99,8 @@ class ClubProvisioningService
                 ])->save();
             }
 
-            $this->applyExtraAccounts($organization, $extraAccounts);
+            // Tachly invoices post flights to 3000 and the fuel reclass to 6140 — both must mean that on every club.
+            $this->applyExtraAccounts($organization, array_merge((array) config('tachly-integration.default_accounts', []), $extraAccounts));
 
             $bankAccount = $this->upsertBankAccount(
                 $organization,
@@ -234,6 +235,25 @@ class ClubProvisioningService
                 locale: $locale,
                 emailVerifiedAt: now(),
             ));
+    }
+
+    /**
+     * Create-or-rename accounts by code for an already-provisioned club (Tachly's cashCtrl chart
+     * import). Renames on a code clash — that is the point: the generic template's 3000
+     * "Mitgliederbeiträge" becomes the club's own "Einnahmen aus Flugstunden".
+     *
+     * @param  array{code: string, name: string, type: string}[]  $accounts
+     */
+    public function upsertAccounts(string $tachlyClubId, array $accounts): int
+    {
+        $organization = Organization::withoutGlobalScopes()->where('tachly_club_id', $tachlyClubId)->first();
+        if ($organization === null) {
+            throw new InvalidArgumentException("No organization provisioned for tachly_club_id={$tachlyClubId}");
+        }
+
+        DB::transaction(fn () => $this->applyExtraAccounts($organization, $accounts));
+
+        return count($accounts);
     }
 
     /** @param array{code: string, name: string, type: string}[] $extraAccounts */

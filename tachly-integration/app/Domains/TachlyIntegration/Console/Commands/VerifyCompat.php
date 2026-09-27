@@ -5,6 +5,8 @@ namespace App\Domains\TachlyIntegration\Console\Commands;
 use App\Domains\Accounting\Constants\AccountCode;
 use App\Domains\Accounting\Enums\AccountType;
 use App\Domains\Accounting\Models\Account;
+use App\Domains\Accounting\Models\JournalEntry;
+use App\Domains\Accounting\Services\LedgerService;
 use App\Domains\Accounting\Services\ChartTemplateService;
 use App\Domains\Api\Enums\TokenType;
 use App\Domains\Banking\Models\BankAccount;
@@ -65,6 +67,9 @@ class VerifyCompat extends Command
         $this->checkClassAndMethods(GenerateQrInvoicePdfAction::class, ['execute']);
         $this->checkClassAndMethods(Invoice::class, ['recalculate', 'lines']);
         $this->checkClassAndMethods(InvoiceNumberGenerator::class, ['next']);
+        // LedgerImportController
+        $this->checkClassAndMethods(LedgerService::class, ['postEntry']);
+        $this->checkClassAndMethods(JournalEntry::class, []);
         $this->checkEnumCase(InvoiceType::class, 'CreditNote');
         $this->checkEnumCase(InvoiceLineType::class, 'Discount');
 
@@ -72,6 +77,8 @@ class VerifyCompat extends Command
         $this->checkEnumCases(AccountType::class, ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']);
 
         $this->checkConstant(AccountCode::class, 'BANK_CASH', '1020');
+        // Tachly's fuel reclass books Cr 3000 — must stay Gäld's own invoice-revenue account.
+        $this->checkConstant(AccountCode::class, 'REVENUE', '3000');
 
         $this->checkChartTemplate();
         $this->checkRegisteredProviders();

@@ -18,6 +18,16 @@ return [
     'chart_template' => env('TACHLY_CHART_TEMPLATE', 'swiss_association'),
 
     /**
+     * Accounts Tachly's own postings rely on, ensured on every provision (a re-provision
+     * also renames the template's 3000 "Mitgliederbeiträge" — Tachly invoices book flights there).
+     * Club-supplied `extra_accounts` are applied after these and win on a clash.
+     */
+    'default_accounts' => [
+        ['code' => '3000', 'name' => 'Einnahmen aus Flugstunden', 'type' => 'revenue'],
+        ['code' => '6140', 'name' => 'Treibstoff', 'type' => 'expense'],
+    ],
+
+    /**
      * Canonical Gäld permission strings granted to every Tachly-minted
      * org-scoped API token. Deliberately excludes anything destructive
      * (organization.delete, accounting.delete, *.delete) and payroll/

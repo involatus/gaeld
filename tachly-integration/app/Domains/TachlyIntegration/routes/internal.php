@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\TachlyIntegration\Http\Controllers\InvoiceLineTypeController;
+use App\Domains\TachlyIntegration\Http\Controllers\LedgerImportController;
 use App\Domains\TachlyIntegration\Http\Controllers\ProvisionController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,3 +13,5 @@ Route::post('/organizations/{tachlyClubId}/rotate-token', [ProvisionController::
 Route::post('/organizations/{tachlyClubId}/send-login-link', [ProvisionController::class, 'sendLoginLink']);
 Route::delete('/organizations/{tachlyClubId}', [ProvisionController::class, 'destroy']);
 Route::post('/organizations/{tachlyClubId}/invoices/{invoiceId}/apply-discounts', [InvoiceLineTypeController::class, 'applyDiscounts']);
+Route::post('/organizations/{tachlyClubId}/accounts', [LedgerImportController::class, 'upsertAccounts']);
+Route::post('/organizations/{tachlyClubId}/journal-import', [LedgerImportController::class, 'journalImport']);
