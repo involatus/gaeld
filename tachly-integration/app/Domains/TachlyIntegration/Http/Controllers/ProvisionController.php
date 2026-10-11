@@ -28,6 +28,7 @@ class ProvisionController extends Controller
      * @bodyParam owner_name string required
      * @bodyParam iban string required
      * @bodyParam qr_iban string
+     * @bodyParam currency string default: CHF One of CHF, EUR, USD, GBP — matches Tachly's `clubs.currency` (TAC-263). Defaults to CHF for a caller older than this field.
      * @bodyParam locale string default: de
      * @bodyParam bank_ledger_account_code string GL account the bank account posts to. Defaults to the seeded "Bank Account CHF" (1020).
      * @bodyParam extra_accounts array [{code, name, type: asset|liability|equity|revenue|expense}, ...]
@@ -52,6 +53,7 @@ class ProvisionController extends Controller
                 'owner_name' => ['required', 'string', 'max:255'],
                 'iban' => ['required', 'string', 'max:34'],
                 'qr_iban' => ['nullable', 'string', 'max:34'],
+                'currency' => ['nullable', 'string', 'in:CHF,EUR,USD,GBP'],
                 'locale' => ['nullable', 'string', 'in:en,fr,de,it'],
                 'bank_ledger_account_code' => ['nullable', 'string', 'max:20'],
                 'address_street' => ['nullable', 'string', 'max:255'],
@@ -77,6 +79,7 @@ class ProvisionController extends Controller
             ownerName: $validated['owner_name'],
             iban: $validated['iban'],
             qrIban: $validated['qr_iban'] ?? null,
+            currency: $validated['currency'] ?? 'CHF',
             extraAccounts: $validated['extra_accounts'] ?? [],
             locale: $validated['locale'] ?? 'de',
             bankLedgerAccountCode: $validated['bank_ledger_account_code'] ?? null,
