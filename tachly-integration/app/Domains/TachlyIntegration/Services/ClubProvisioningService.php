@@ -47,6 +47,7 @@ class ClubProvisioningService
         string $ownerName,
         string $iban,
         ?string $qrIban = null,
+        string $currency = 'CHF',
         array $extraAccounts = [],
         string $locale = 'de',
         ?string $bankLedgerAccountCode = null,
@@ -54,7 +55,7 @@ class ClubProvisioningService
     ): array {
         return DB::transaction(function () use (
             $tachlyClubId, $clubName, $ownerEmail, $ownerName,
-            $iban, $qrIban, $extraAccounts, $locale, $bankLedgerAccountCode,
+            $iban, $qrIban, $currency, $extraAccounts, $locale, $bankLedgerAccountCode,
             $address,
         ) {
             $organization = Organization::withoutGlobalScopes()
@@ -69,7 +70,7 @@ class ClubProvisioningService
                     name: $clubName,
                     addressData: $address,
                     country: 'CH',
-                    currency: 'CHF',
+                    currency: $currency,
                     locale: $locale,
                 ));
                 $organization->forceFill(['tachly_club_id' => $tachlyClubId])->save();
@@ -107,6 +108,7 @@ class ClubProvisioningService
                 $clubName,
                 $iban,
                 $qrIban,
+                $currency,
                 $bankLedgerAccountCode ?? AccountCode::BANK_CASH,
             );
 
@@ -279,6 +281,7 @@ class ClubProvisioningService
         string $clubName,
         string $iban,
         ?string $qrIban,
+        string $currency,
         string $bankLedgerAccountCode,
     ): BankAccount {
         $ledgerAccount = Account::withoutGlobalScopes()
@@ -295,7 +298,7 @@ class ClubProvisioningService
                 'account_id' => $ledgerAccount?->id,
                 'name' => $clubName.' — Bank',
                 'qr_iban' => $qrIban,
-                'currency' => 'CHF',
+                'currency' => $currency,
                 'is_active' => true,
                 'is_default_for_invoicing' => true,
             ],
