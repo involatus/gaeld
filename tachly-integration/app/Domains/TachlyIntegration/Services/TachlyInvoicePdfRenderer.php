@@ -49,13 +49,40 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
         return trans('app.'.$key, [], $this->locale);
     }
 
-    /** No upstream `app.*` translation key for this exists (checked lang/{locale}/app.php
-     *  as of v3.8.27) — hardcoded here rather than depending on one that might never land. */
-    private const BILL_TO_LABEL = ['en' => 'Bill to', 'de' => 'Rechnung an', 'fr' => 'Facturer à', 'it' => 'Fatturare a'];
+    /**
+     * Display labels for Tachly-specific concepts (flights, aircraft, fuel credits) that
+     * have no upstream `app.*` translation key (checked lang/{locale}/app.php as of
+     * v3.8.27) — hardcoded here rather than depending on keys that might never land.
+     * `t()` above still covers everything upstream already translates (date, VAT,
+     * totals, ...); this only fills the Tachly-shaped gaps `renderLineItems()` needs.
+     *
+     * NOT used for the `description === 'Rundung'`/FLIGHT_PATTERN/CREDIT_PATTERN
+     * matches below — those parse Tachly's own generated description strings
+     * (gaeld-invoice-lines.ts), which are a fixed data format, not display text, and
+     * never vary by locale.
+     */
+    private const TACHLY_LABELS = [
+        'bill_to' => ['en' => 'Bill to', 'de' => 'Rechnung an', 'fr' => 'Facturer à', 'it' => 'Fatturare a'],
+        'flights' => ['en' => 'Flights', 'de' => 'Flüge', 'fr' => 'Vols', 'it' => 'Voli'],
+        'fuel_credits' => ['en' => 'Fuel credits', 'de' => 'Tankgutschriften', 'fr' => 'Crédits carburant', 'it' => 'Crediti carburante'],
+        'date' => ['en' => 'Date', 'de' => 'Datum', 'fr' => 'Date', 'it' => 'Data'],
+        'aircraft' => ['en' => 'Aircraft', 'de' => 'Flugzeug', 'fr' => 'Avion', 'it' => 'Aeromobile'],
+        'from' => ['en' => 'From', 'de' => 'Von', 'fr' => 'De', 'it' => 'Da'],
+        'to' => ['en' => 'To', 'de' => 'Nach', 'fr' => 'À', 'it' => 'A'],
+        'flight_time' => ['en' => 'Flight time', 'de' => 'Flugzeit', 'fr' => 'Temps de vol', 'it' => 'Tempo di volo'],
+        'dec' => ['en' => 'Dec.', 'de' => 'Dez.', 'fr' => 'Déc.', 'it' => 'Dec.'],
+        'rate' => ['en' => 'Rate', 'de' => 'Tarif', 'fr' => 'Tarif', 'it' => 'Tariffa'],
+        'amount' => ['en' => 'Amount', 'de' => 'Betrag', 'fr' => 'Montant', 'it' => 'Importo'],
+        'place' => ['en' => 'Place', 'de' => 'Ort', 'fr' => 'Lieu', 'it' => 'Luogo'],
+        'litres' => ['en' => 'Litres', 'de' => 'Liter', 'fr' => 'Litres', 'it' => 'Litri'],
+        'flight_costs' => ['en' => 'Flight costs', 'de' => 'Flugkosten', 'fr' => 'Coûts de vol', 'it' => 'Costi di volo'],
+        'credits' => ['en' => 'Credits', 'de' => 'Gutschriften', 'fr' => 'Crédits', 'it' => 'Crediti'],
+        'rounding' => ['en' => 'Rounding', 'de' => 'Rundung', 'fr' => 'Arrondi', 'it' => 'Arrotondamento'],
+    ];
 
-    private function billToLabel(): string
+    private function tl(string $key): string
     {
-        return self::BILL_TO_LABEL[$this->locale] ?? self::BILL_TO_LABEL['en'];
+        return self::TACHLY_LABELS[$key][$this->locale] ?? self::TACHLY_LABELS[$key]['en'];
     }
 
     public function renderFoldMarks(TCPDF $tcpdf): void
@@ -134,7 +161,7 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
             $tcpdf->SetXY(Style::CUSTOMER_X + 3, Style::CUSTOMER_INFO_Y - 1);
             $tcpdf->SetFont('Helvetica', '', 6);
             $tcpdf->SetTextColor(...Style::COLOR_GRAY);
-            $tcpdf->Cell(Style::CUSTOMER_WIDTH - 3, 3, mb_strtoupper($this->billToLabel(), 'UTF-8'), 0, 1, 'L');
+            $tcpdf->Cell(Style::CUSTOMER_WIDTH - 3, 3, mb_strtoupper($this->tl('bill_to'), 'UTF-8'), 0, 1, 'L');
             $tcpdf->SetTextColor(0, 0, 0);
 
             $tcpdf->SetX(Style::CUSTOMER_X + 3);
@@ -369,10 +396,10 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
 
         if ($flights !== []) {
             $columns = [
-                ['Datum', 24, 'L'], ['Flugzeug', 24, 'L'], ['Von', 18, 'L'], ['Nach', 18, 'L'],
-                ['Flugzeit', 24, 'R'], ['Dez.', 20, 'R'], ['Tarif', 24, 'R'], ['Betrag', 28, 'R'],
+                [$this->tl('date'), 24, 'L'], [$this->tl('aircraft'), 24, 'L'], [$this->tl('from'), 18, 'L'], [$this->tl('to'), 18, 'L'],
+                [$this->tl('flight_time'), 24, 'R'], [$this->tl('dec'), 20, 'R'], [$this->tl('rate'), 24, 'R'], [$this->tl('amount'), 28, 'R'],
             ];
-            $this->renderSectionTitle($tcpdf, 'Flüge');
+            $this->renderSectionTitle($tcpdf, $this->tl('flights'));
             $this->renderTableHeader($tcpdf, $columns);
             $sum = 0.0;
             foreach ($flights as $rowIndex => [$m, $line]) {
@@ -385,13 +412,13 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
                     number_format($amount, 2),
                 ], $rowIndex);
             }
-            $this->renderSubtotalRow($tcpdf, 'Flugkosten', $sum);
+            $this->renderSubtotalRow($tcpdf, $this->tl('flight_costs'), $sum);
             $this->renderAircraftBreakdown($tcpdf, $flights);
         }
 
         if ($credits !== []) {
-            $columns = [['Datum', 24, 'L'], ['Ort', 96, 'L'], ['Liter', 32, 'R'], ['Betrag', 28, 'R']];
-            $this->renderSectionTitle($tcpdf, 'Tankgutschriften');
+            $columns = [[$this->tl('date'), 24, 'L'], [$this->tl('place'), 96, 'L'], [$this->tl('litres'), 32, 'R'], [$this->tl('amount'), 28, 'R']];
+            $this->renderSectionTitle($tcpdf, $this->tl('fuel_credits'));
             $this->renderTableHeader($tcpdf, $columns);
             $sum = 0.0;
             foreach ($credits as $rowIndex => [$m, $line]) {
@@ -399,7 +426,7 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
                 $sum += $amount;
                 $this->renderTableRow($tcpdf, $columns, [$m[1], $m[2], $m[3], number_format($amount, 2)], $rowIndex);
             }
-            $this->renderSubtotalRow($tcpdf, 'Gutschriften', $sum, true, Style::COLOR_CREDIT);
+            $this->renderSubtotalRow($tcpdf, $this->tl('credits'), $sum, true, Style::COLOR_CREDIT);
         }
 
         foreach ($others as $line) {
@@ -407,7 +434,7 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
         }
 
         foreach ($roundings as $line) {
-            $this->renderSubtotalRow($tcpdf, 'Rundung', $this->lineAmount($line), false);
+            $this->renderSubtotalRow($tcpdf, $this->tl('rounding'), $this->lineAmount($line), false);
         }
     }
 
