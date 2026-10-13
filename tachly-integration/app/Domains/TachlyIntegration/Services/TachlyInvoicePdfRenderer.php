@@ -49,6 +49,15 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
         return trans('app.'.$key, [], $this->locale);
     }
 
+    /** No upstream `app.*` translation key for this exists (checked lang/{locale}/app.php
+     *  as of v3.8.27) — hardcoded here rather than depending on one that might never land. */
+    private const BILL_TO_LABEL = ['en' => 'Bill to', 'de' => 'Rechnung an', 'fr' => 'Facturer à', 'it' => 'Fatturare a'];
+
+    private function billToLabel(): string
+    {
+        return self::BILL_TO_LABEL[$this->locale] ?? self::BILL_TO_LABEL['en'];
+    }
+
     public function renderFoldMarks(TCPDF $tcpdf): void
     {
         $tcpdf->SetDrawColor(...Style::COLOR_GRAY);
@@ -110,9 +119,27 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
         }
 
         if ($customerDetails !== null) {
-            $tcpdf->SetXY(Style::CUSTOMER_X, Style::CUSTOMER_INFO_Y);
+            // "Bill to" shaded card — matches the web app's .bill-to box (light-slate
+            // fill, sky-blue left bar, uppercase label above the name).
+            $cardHeight = 6 + 5 + 4 * max(1, count(array_filter([
+                $customerDetails['address'] ?? null,
+                trim(($customerDetails['postal_code'] ?? '').' '.($customerDetails['city'] ?? '')),
+                $customerDetails['country'] ?? null,
+            ])));
+            $tcpdf->SetFillColor(...Style::COLOR_BILL_TO_BG);
+            $tcpdf->Rect(Style::CUSTOMER_X, Style::CUSTOMER_INFO_Y - 2, Style::CUSTOMER_WIDTH, $cardHeight, 'F');
+            $tcpdf->SetFillColor(...Style::COLOR_LIGHT);
+            $tcpdf->Rect(Style::CUSTOMER_X, Style::CUSTOMER_INFO_Y - 2, 0.8, $cardHeight, 'F');
+
+            $tcpdf->SetXY(Style::CUSTOMER_X + 3, Style::CUSTOMER_INFO_Y - 1);
+            $tcpdf->SetFont('Helvetica', '', 6);
+            $tcpdf->SetTextColor(...Style::COLOR_GRAY);
+            $tcpdf->Cell(Style::CUSTOMER_WIDTH - 3, 3, mb_strtoupper($this->billToLabel(), 'UTF-8'), 0, 1, 'L');
+            $tcpdf->SetTextColor(0, 0, 0);
+
+            $tcpdf->SetX(Style::CUSTOMER_X + 3);
             $tcpdf->SetFont('Helvetica', 'B', 10);
-            $tcpdf->Cell(Style::CUSTOMER_WIDTH, 5, $customerDetails['name'], 0, 1, 'L');
+            $tcpdf->Cell(Style::CUSTOMER_WIDTH - 3, 5, $customerDetails['name'], 0, 1, 'L');
 
             $tcpdf->SetFont('Helvetica', '', 9);
             $customerAddress = array_filter([
@@ -121,14 +148,14 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
                 $customerDetails['country'],
             ]);
             foreach ($customerAddress as $line) {
-                $tcpdf->SetX(Style::CUSTOMER_X);
-                $tcpdf->Cell(Style::CUSTOMER_WIDTH, 4, $line, 0, 1, 'L');
+                $tcpdf->SetX(Style::CUSTOMER_X + 3);
+                $tcpdf->Cell(Style::CUSTOMER_WIDTH - 3, 4, $line, 0, 1, 'L');
             }
             if ($customerDetails['vat_number']) {
                 $tcpdf->SetFont('Helvetica', '', 7);
                 $tcpdf->SetTextColor(...Style::COLOR_GRAY);
-                $tcpdf->SetX(Style::CUSTOMER_X);
-                $tcpdf->Cell(Style::CUSTOMER_WIDTH, 4, $this->t('pdf_vat_number').': '.$customerDetails['vat_number'], 0, 1, 'L');
+                $tcpdf->SetX(Style::CUSTOMER_X + 3);
+                $tcpdf->Cell(Style::CUSTOMER_WIDTH - 3, 4, $this->t('pdf_vat_number').': '.$customerDetails['vat_number'], 0, 1, 'L');
                 $tcpdf->SetTextColor(0, 0, 0);
             }
         }
@@ -170,6 +197,13 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
             $tcpdf->MultiCell(Style::COL_TOTAL_WIDTH, 4, $organization->invoice_header_text, 0, 'L');
         }
 
+        // Matches the web app's 2px sky-blue rule under the whole header block.
+        $tcpdf->Ln(3);
+        $tcpdf->SetDrawColor(...Style::COLOR_LIGHT);
+        $tcpdf->SetLineWidth(0.6);
+        $tcpdf->Line(Style::MARGIN_LEFT, $tcpdf->GetY(), $tcpdf->getPageWidth() - Style::MARGIN_RIGHT, $tcpdf->GetY());
+        $tcpdf->SetDrawColor(0, 0, 0);
+        $tcpdf->SetLineWidth(0.2);
         $tcpdf->Ln(4);
     }
 
@@ -203,22 +237,25 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
         $this->ensureSpace($tcpdf, 24);
         $tcpdf->Ln(2);
         $tcpdf->SetFont('Helvetica', 'B', 9);
-        $tcpdf->SetTextColor(...Style::COLOR_ACCENT);
+        $tcpdf->SetTextColor(...Style::COLOR_LIGHT);
         $tcpdf->SetX(Style::MARGIN_LEFT);
-        $tcpdf->Cell(Style::COL_TOTAL_WIDTH, 6, $title, 0, 1, 'L');
+        $tcpdf->Cell(Style::COL_TOTAL_WIDTH, 6, mb_strtoupper($title, 'UTF-8'), 0, 1, 'L');
         $tcpdf->SetTextColor(...Style::COLOR_BLACK);
     }
 
     /** @param  array<int, array{0: string, 1: int|float, 2: string}>  $columns  [label, width, align] */
     private function renderTableHeader(TCPDF $tcpdf, array $columns): void
     {
+        // Navy fill / white text, matching the web app's table.dt thead.
         $tcpdf->SetFont('Helvetica', 'B', Style::FONT_TABLE_HEADER);
-        $tcpdf->SetFillColor(...Style::COLOR_FILL);
+        $tcpdf->SetFillColor(...Style::COLOR_ACCENT);
+        $tcpdf->SetTextColor(...Style::COLOR_WHITE);
         $tcpdf->SetX(Style::MARGIN_LEFT);
         $last = count($columns) - 1;
         foreach ($columns as $i => $column) {
-            $tcpdf->Cell($column[1], 6, $column[0], 0, $i === $last ? 1 : 0, $column[2], true);
+            $tcpdf->Cell($column[1], 6, mb_strtoupper($column[0], 'UTF-8'), 0, $i === $last ? 1 : 0, $column[2], true);
         }
+        $tcpdf->SetTextColor(...Style::COLOR_BLACK);
         $tcpdf->SetFont('Helvetica', '', Style::FONT_TABLE_ROW);
     }
 
@@ -226,9 +263,15 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
      * @param  array<int, array{0: string, 1: int|float, 2: string}>  $columns
      * @param  array<int, string>  $values
      */
-    private function renderTableRow(TCPDF $tcpdf, array $columns, array $values): void
+    private function renderTableRow(TCPDF $tcpdf, array $columns, array $values, int $rowIndex = 0): void
     {
         $this->ensureSpace($tcpdf, 6);
+        $rowWidth = array_sum(array_column($columns, 1));
+        // Alternating stripe, matching the web app's table.dt tbody tr:nth-child(even).
+        if ($rowIndex % 2 === 1) {
+            $tcpdf->SetFillColor(...Style::COLOR_FILL);
+            $tcpdf->Rect(Style::MARGIN_LEFT, $tcpdf->GetY(), $rowWidth, 5, 'F');
+        }
         $tcpdf->SetFont('Helvetica', '', Style::FONT_TABLE_ROW);
         $tcpdf->SetX(Style::MARGIN_LEFT);
         $last = count($columns) - 1;
@@ -237,7 +280,7 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
         }
     }
 
-    private function renderSubtotalRow(TCPDF $tcpdf, string $label, float $amount, bool $bold = true): void
+    private function renderSubtotalRow(TCPDF $tcpdf, string $label, float $amount, bool $bold = true, ?array $color = null): void
     {
         $this->ensureSpace($tcpdf, 8);
         $tcpdf->SetDrawColor(...Style::COLOR_RULE);
@@ -245,8 +288,50 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
         $tcpdf->SetDrawColor(0, 0, 0);
         $tcpdf->SetFont('Helvetica', $bold ? 'B' : '', Style::FONT_TABLE_ROW + 1);
         $tcpdf->SetX(Style::MARGIN_LEFT);
+        if ($color !== null) {
+            $tcpdf->SetTextColor(...$color);
+        }
         $tcpdf->Cell(Style::COL_TOTAL_WIDTH - 28, 6, $label, 0, 0, 'R');
         $tcpdf->Cell(28, 6, number_format($amount, 2), 0, 1, 'R');
+        if ($color !== null) {
+            $tcpdf->SetTextColor(...Style::COLOR_BLACK);
+        }
+    }
+
+    /**
+     * One compact line per distinct aircraft — "HB-SCU: 5:23 × CHF 240.00" — between the
+     * Flüge table's own total and the rest of the invoice. Matches the web app's
+     * `aircraftBreakdown` summary (src/lib/server/billing-generate.ts): same source data
+     * (the already-parsed flight lines), just computed here instead of threaded from Tachly,
+     * since Gäld only ever receives the flattened per-flight description lines.
+     * Rate shown is the first flight's unit_price for that aircraft — Tachly resolves one
+     * rate per (pilot, aircraft) per invoice, so every line for a given aircraft already
+     * shares it; taking the first is exact, not an approximation.
+     *
+     * @param  array<int, array{0: array<int, string>, 1: mixed}>  $flights  [match, line] pairs from renderLineItems
+     */
+    private function renderAircraftBreakdown(TCPDF $tcpdf, array $flights): void
+    {
+        if ($flights === []) {
+            return;
+        }
+
+        $groups = [];
+        foreach ($flights as [$m, $line]) {
+            $aircraft = $m[4];
+            [$h, $min] = array_map('intval', explode(':', $m[5]));
+            $groups[$aircraft]['minutes'] = ($groups[$aircraft]['minutes'] ?? 0) + $h * 60 + $min;
+            $groups[$aircraft]['amount'] = ($groups[$aircraft]['amount'] ?? 0.0) + $this->lineAmount($line);
+            $groups[$aircraft]['rate'] ??= (float) $line->unit_price;
+        }
+
+        // A single-aircraft invoice still shows its one line — same as the web app, which
+        // never conditions this on aircraft count, only on whether any flights exist.
+        foreach ($groups as $aircraft => $group) {
+            $hm = sprintf('%d:%02d', intdiv($group['minutes'], 60), $group['minutes'] % 60);
+            $label = sprintf('%s: %s × %s', $aircraft, $hm, number_format($group['rate'], 2));
+            $this->renderSubtotalRow($tcpdf, $label, $group['amount'], false);
+        }
     }
 
     public function renderLineItems(TCPDF $tcpdf, Invoice $invoice): void
@@ -290,7 +375,7 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
             $this->renderSectionTitle($tcpdf, 'Flüge');
             $this->renderTableHeader($tcpdf, $columns);
             $sum = 0.0;
-            foreach ($flights as [$m, $line]) {
+            foreach ($flights as $rowIndex => [$m, $line]) {
                 $amount = $this->lineAmount($line);
                 $sum += $amount;
                 $this->renderTableRow($tcpdf, $columns, [
@@ -298,9 +383,10 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
                     number_format((float) $line->quantity, 2),
                     number_format((float) $line->unit_price, 2),
                     number_format($amount, 2),
-                ]);
+                ], $rowIndex);
             }
             $this->renderSubtotalRow($tcpdf, 'Flugkosten', $sum);
+            $this->renderAircraftBreakdown($tcpdf, $flights);
         }
 
         if ($credits !== []) {
@@ -308,12 +394,12 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
             $this->renderSectionTitle($tcpdf, 'Tankgutschriften');
             $this->renderTableHeader($tcpdf, $columns);
             $sum = 0.0;
-            foreach ($credits as [$m, $line]) {
+            foreach ($credits as $rowIndex => [$m, $line]) {
                 $amount = $this->lineAmount($line);
                 $sum += $amount;
-                $this->renderTableRow($tcpdf, $columns, [$m[1], $m[2], $m[3], number_format($amount, 2)]);
+                $this->renderTableRow($tcpdf, $columns, [$m[1], $m[2], $m[3], number_format($amount, 2)], $rowIndex);
             }
-            $this->renderSubtotalRow($tcpdf, 'Gutschriften', $sum);
+            $this->renderSubtotalRow($tcpdf, 'Gutschriften', $sum, true, Style::COLOR_CREDIT);
         }
 
         foreach ($others as $line) {
@@ -381,10 +467,18 @@ class TachlyInvoicePdfRenderer extends InvoicePdfRenderer
             $tcpdf->Cell(Style::COL_AMOUNT, 5, number_format((float) $invoice->vat_amount, 2), 0, 1, 'R');
         }
 
+        // Navy filled bar, white label, sky-blue amount — matches the web app's .s-row.total.
+        $this->ensureSpace($tcpdf, 10);
+        $tcpdf->Ln(2);
+        // TOTALS_LABEL_WIDTH + COL_AMOUNT == COL_TOTAL_WIDTH by design (both total cells
+        // below already span the full content width from MARGIN_LEFT, unprefixed).
+        $tcpdf->SetFillColor(...Style::COLOR_ACCENT);
+        $tcpdf->Rect(Style::MARGIN_LEFT, $tcpdf->GetY(), Style::TOTALS_LABEL_WIDTH + Style::COL_AMOUNT, 9, 'F');
         $tcpdf->SetFont('Helvetica', 'B', Style::FONT_TOTALS_GRAND);
-        $tcpdf->SetTextColor(...Style::COLOR_ACCENT);
-        $tcpdf->Cell(Style::TOTALS_LABEL_WIDTH, 7, $this->t('pdf_total').' '.($invoice->currency ?? 'CHF'), 0, 0, 'R');
-        $tcpdf->Cell(Style::COL_AMOUNT, 7, number_format((float) $invoice->total, 2), 0, 1, 'R');
+        $tcpdf->SetTextColor(...Style::COLOR_WHITE);
+        $tcpdf->Cell(Style::TOTALS_LABEL_WIDTH, 9, '  '.$this->t('pdf_total').' '.($invoice->currency ?? 'CHF'), 0, 0, 'R');
+        $tcpdf->SetTextColor(...Style::COLOR_LIGHT);
+        $tcpdf->Cell(Style::COL_AMOUNT, 9, number_format((float) $invoice->total, 2).'  ', 0, 1, 'R');
         $tcpdf->SetTextColor(...Style::COLOR_BLACK);
 
         if ($invoice->notes) {
