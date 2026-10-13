@@ -98,6 +98,13 @@ final class TachlyInvoicePdfStyle
 
     public const COLOR_LIGHT = [91, 184, 232]; // #5BB8E8, sky-blue
 
+    // Carbone-parity additions (web app invoice PDF, src/lib/server/carbone-templates/monthly-invoice.html)
+    public const COLOR_WHITE = [255, 255, 255];
+
+    public const COLOR_CREDIT = [22, 163, 74]; // #16a34a, matches the web app's fuel-credit green
+
+    public const COLOR_BILL_TO_BG = [248, 250, 252]; // #f8fafc
+
     // Logo — bundled Tachly mark (see ../assets/tachly-logo.png), not an
     // organization-uploaded one (every Tachly-provisioned org uses the same brand).
     public const LOGO_X = 15;
