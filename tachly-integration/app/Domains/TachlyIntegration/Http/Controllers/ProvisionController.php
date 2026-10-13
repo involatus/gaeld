@@ -29,7 +29,7 @@ class ProvisionController extends Controller
      * @bodyParam iban string required
      * @bodyParam qr_iban string
      * @bodyParam currency string default: CHF One of CHF, EUR, USD, GBP — matches Tachly's `clubs.currency` (TAC-263). Defaults to CHF for a caller older than this field.
-     * @bodyParam locale string default: de
+     * @bodyParam locale string default: en One of en, de, fr, it — the club admin's explicit choice of Gäld-side document/UI language, independent of Tachly's own (Tachly has no i18n yet). Safe to call again with a different value: provision() always resyncs locale on every call, not just first creation.
      * @bodyParam bank_ledger_account_code string GL account the bank account posts to. Defaults to the seeded "Bank Account CHF" (1020).
      * @bodyParam extra_accounts array [{code, name, type: asset|liability|equity|revenue|expense}, ...]
      * @bodyParam address_street string The club's own creditor address — required for Swiss QR-bill PDF generation to work at all (`creditor.postalCode`/`creditor.city` must not be blank).
@@ -81,7 +81,7 @@ class ProvisionController extends Controller
             qrIban: $validated['qr_iban'] ?? null,
             currency: $validated['currency'] ?? 'CHF',
             extraAccounts: $validated['extra_accounts'] ?? [],
-            locale: $validated['locale'] ?? 'de',
+            locale: $validated['locale'] ?? 'en',
             bankLedgerAccountCode: $validated['bank_ledger_account_code'] ?? null,
             address: new AddressData(
                 address: $validated['address_street'] ?? null,
