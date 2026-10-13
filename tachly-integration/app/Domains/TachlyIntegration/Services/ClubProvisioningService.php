@@ -49,7 +49,7 @@ class ClubProvisioningService
         ?string $qrIban = null,
         string $currency = 'CHF',
         array $extraAccounts = [],
-        string $locale = 'de',
+        string $locale = 'en',
         ?string $bankLedgerAccountCode = null,
         ?AddressData $address = null,
     ): array {
@@ -98,6 +98,15 @@ class ClubProvisioningService
                     'postal_code' => $address->postalCode,
                     'city' => $address->city,
                 ])->save();
+            }
+
+            // Always resync locale too (not just on first provisioning): a club admin can
+            // change their Gäld-side document/UI language later via Tachly's accounting
+            // settings — Tachly itself has no i18n yet, so this is an independent,
+            // explicit per-club choice, not inherited from anywhere. Only writes when it
+            // actually changed, so a plain idempotent retry doesn't churn updated_at.
+            if ($organization->locale !== $locale) {
+                $organization->forceFill(['locale' => $locale])->save();
             }
 
             // Tachly invoices post flights to 3000 and the fuel reclass to 6140 — both must mean that on every club.
