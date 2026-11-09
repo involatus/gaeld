@@ -13,7 +13,7 @@ production-ish setup:
   `php-fpm` + `nginx` + `supervisor` runtime with `tesseract-ocr` for receipt
   OCR. `laravel/tinker` is kept in the image for evaluation bootstrapping.
 - **`docker-compose.yml`** — `web` (nginx + php-fpm), `worker` (Horizon),
-  `postgres:16`, `redis:7`, `getmeili/meilisearch`.
+  `postgres:18`, `redis:8`, `getmeili/meilisearch:v1.56`.
 - **`docker/`** — nginx, php-fpm pool, php.ini, supervisord, entrypoint.
 
 The `web` container entrypoint runs `php artisan gaeld:install --no-interaction`

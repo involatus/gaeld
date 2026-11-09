@@ -87,7 +87,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        GAELD_VERSION: "${GAELD_VERSION:-v3.8.27}"
+        GAELD_VERSION: "${GAELD_VERSION:-v3.8.28}"
     image: gaeld-eval-web:latest
     restart: unless-stopped
     mem_limit: 768m
@@ -119,7 +119,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        GAELD_VERSION: "${GAELD_VERSION:-v3.8.27}"
+        GAELD_VERSION: "${GAELD_VERSION:-v3.8.28}"
     image: gaeld-eval-worker:latest
     restart: unless-stopped
     mem_limit: 768m
@@ -142,7 +142,7 @@ services:
       start_period: 60s
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     mem_limit: 512m
     cpus: "1.0"
@@ -151,7 +151,9 @@ services:
       POSTGRES_USER: "${DB_USERNAME:-gaeld}"
       POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD is required}"
     volumes:
-      - gaeld-db:/var/lib/postgresql/data
+      # Postgres 18 images keep data in /var/lib/postgresql/<major>/docker; the 16
+      # volume `gaeld-db` was migrated by dump/restore (2026-11-09) and is kept for rollback.
+      - gaeld-db-pg18:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-gaeld} -d ${DB_DATABASE:-gaeld}"]
       interval: 10s
@@ -159,7 +161,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     mem_limit: 256m
     cpus: "0.5"
@@ -173,7 +175,7 @@ services:
       retries: 10
 
   meilisearch:
-    image: getmeili/meilisearch:v1.10
+    image: getmeili/meilisearch:v1.56.1
     restart: unless-stopped
     mem_limit: 512m
     cpus: "0.5"
@@ -182,7 +184,9 @@ services:
       MEILI_ENV: "production"
       MEILI_NO_ANALYTICS: "true"
     volumes:
-      - gaeld-meili:/meili_data
+      # Fresh index store for 1.56 (1.10 data isn't readable); rebuilt with
+      # `php artisan gaeld:meilisearch:setup && php artisan gaeld:meilisearch:reindex`.
+      - gaeld-meili-v156:/meili_data
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:7700/health"]
       interval: 15s
@@ -190,7 +194,7 @@ services:
       retries: 10
 
 volumes:
-  gaeld-db:
+  gaeld-db-pg18:
   gaeld-redis:
-  gaeld-meili:
+  gaeld-meili-v156:
   gaeld-storage:
