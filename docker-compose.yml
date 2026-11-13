@@ -71,7 +71,12 @@ x-app-env: &app-env
   WEBAUTHN_NAME: "Gäld"
   WEBAUTHN_ID: "${WEBAUTHN_ID:-localhost}"
 
-  SANCTUM_TOKEN_EXPIRATION: "10080"
+  # Unset (no expiration) by default: these are long-lived org-scoped machine
+  # credentials for the Tachly integration (M2+), not human session tokens —
+  # the 10080 (7-day) value from the original single-org evaluation stack
+  # silently expired GlaStar's token on 2026-10-01 and broke every Gäld sync
+  # since, undetected for ~6 weeks (see TachlyIntegration's own README).
+  SANCTUM_TOKEN_EXPIRATION: "${SANCTUM_TOKEN_EXPIRATION:-}"
   PLUGINS_ENABLED: "true"
   ACTIVITY_LOGGER_ENABLED: "true"
   DOCS_BASE_URL: "https://docs.gaeld.ch"
