@@ -54,6 +54,12 @@ plausible.
   Gäld's own `DeleteOrganizationAction` uses elsewhere — a soft-deleted org is
   still found by this same package's `provision()` lookup and would be silently
   reused instead of provisioning fresh).
+- `Http/Controllers/LedgerImportController.php` — `POST /internal/tachly/organizations/{id}/accounts`
+  (create or rename accounts) and `…/journal-import` (one all-or-nothing transaction per chunk,
+  idempotent by `reference`, `dry_run` supported). Used for the one-time cashCtrl import.
+- `Http/Controllers/InvoiceLineTypeController.php` — `POST …/invoices/{id}/apply-discounts`.
+  Flips chosen lines of a **draft** invoice to `discount`, optionally turning it into a credit
+  note, because upstream `POST /invoices` drops line `type`.
 - `Http/Middleware/VerifyInternalSharedSecret.php` — gates the whole
   `/internal/tachly/*` group with a shared secret (`TACHLY_INTERNAL_SHARED_SECRET`
   env var), never the public `/api/v1` auth path.
@@ -98,6 +104,30 @@ plausible.
   confirmed live in the actual Gäld source that this is *not* web-UI-only
   (an earlier eval doc said otherwise; that was stale) — so no new internal
   route was needed for this.
+
+## Tokens and abilities
+
+Tachly's org token gets the abilities in `config/tachly-integration.php` →
+`token_abilities`, passed through upstream's `TokenPermissionMap::normalize()`. That
+function **silently drops** any ability it doesn't know. Up to v3.8.x it dropped
+`reporting.view`. v3.9.0 keeps it, but only on tokens minted after the upgrade. It
+**still drops `banking.reconcile`**. Check what a token really holds in
+`personal_access_tokens.abilities`, not in the config.
+
+`rotate-token` mints a new token but **does not revoke the old one**, so stale tokens
+pile up (GlaStar had six by 2026-11-17).
+
+Upstream's `/mcp` server (v3.9.0+) rejects these org tokens by design: it accepts only
+personal read-only tokens (`artisan gaeld:token ORG --mcp`).
+
+## Upgrading Gäld
+
+After every `GAELD_VERSION` bump, read upstream's diff of `bootstrap/providers.php`
+(this package replaces that file whole), `routes/api.php` and
+`app/Http/Middleware/Api/TokenPermissionMap.php`. Then run `artisan tachly:verify-compat`.
+The v3.9.0 bump (2026-11-17) needed no code change here.
+
+The full Tachly-side reference is `docs/gaeld-integration.md` in the Tachly repo.
 
 ## A non-obvious wiring detail
 
