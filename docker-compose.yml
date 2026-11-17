@@ -56,6 +56,10 @@ x-app-env: &app-env
   # Feature flags — CE evaluation
   FEATURE_SAAS: "false"
   FEATURE_API_ACCESS: "true"
+  # v3.9.0+: read-only MCP server at /mcp (needs FEATURE_API_ACCESS too).
+  # Only accepts *personal* tokens with read abilities (`artisan gaeld:token
+  # ORG_UUID --mcp`); Tachly's org-scoped integration tokens are rejected.
+  FEATURE_MCP_ACCESS: "${FEATURE_MCP_ACCESS:-true}"
   FEATURE_BANK_SYNC: "${FEATURE_BANK_SYNC:-false}"
   FEATURE_AUTOMATION: "${FEATURE_AUTOMATION:-false}"
   FEATURE_MULTI_CURRENCY: "${FEATURE_MULTI_CURRENCY:-false}"
@@ -92,7 +96,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        GAELD_VERSION: "${GAELD_VERSION:-v3.8.28}"
+        GAELD_VERSION: "${GAELD_VERSION:-v3.9.0}"
     image: gaeld-eval-web:latest
     restart: unless-stopped
     mem_limit: 768m
@@ -124,7 +128,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        GAELD_VERSION: "${GAELD_VERSION:-v3.8.28}"
+        GAELD_VERSION: "${GAELD_VERSION:-v3.9.0}"
     image: gaeld-eval-worker:latest
     restart: unless-stopped
     mem_limit: 768m
